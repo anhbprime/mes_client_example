@@ -1,0 +1,33 @@
+# CMake build directories
+/build/
+/build-*/
+/out/
+/bin/
+/lib/
+
+# Visual Studio specific
+*.vcxproj*
+*.sln
+*.vcxproj.filters
+*.user
+*.aps
+
+# Intermediate
+*.obj
+*.o
+*.pdb
+*.ilk
+*.idb
+*.log
+
+# CMake generated
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+
+# Others
+*.exe
+*.dll
+*.lib
+*.exp
