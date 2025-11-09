@@ -1,25 +1,29 @@
 #include "Queue.hpp"
 #include "Messages.hpp"
 #include "workers/IOWorker.hpp"
-#include "workers/MESWorker.hpp"
+#include "MESManager.hpp"
+#include "protocol/Protocol.hpp"
 #include <iostream>
 #include <thread>
-#include <stop_token>
+#include <format>
+#include <atomic>
 
 int main(){
-    const size_t MAIN_INBOX_CAP = 2000;  // 워커 -> 메인 (MPSC)
-    const size_t IO_IN_CAP      = 2000;  // 메인 -> IO (SPSC)
-    const size_t MES_IN_CAP     = 2000;  // 메인 -> MES (SPSC)
+    const size_t MAIN_INBOX_CAP = 2000;
+    const size_t IO_IN_CAP      = 2000;
+    const size_t MESMGR_IN_CAP  = 2000;
 
     MPSCQueue<InboxMsg> main_inbox{MAIN_INBOX_CAP};
     SPSCQueue<IOCmd>    io_in{IO_IN_CAP};
-    SPSCQueue<MESCmd>   mes_in{MES_IN_CAP};
+    SPSCQueue<ProtoPtr> mesmgr_in{MESMGR_IN_CAP}; 
 
     IOWorker  io{main_inbox, io_in};
-    MESWorker mes{main_inbox, mes_in};
+    MESManager mesmgr{main_inbox, mesmgr_in};
 
     io.start();
-    mes.start();
+    mesmgr.start();
+
+    std::atomic<int> seq{0};
 
     std::jthread hub([&](std::stop_token st){
         while (!st.stop_requested()) {
@@ -28,17 +32,24 @@ int main(){
 
             if (auto* ev = std::get_if<IOEvent>(&m)) {
                 std::cout << "[HUB] IOEvent " << ev->msgId << " " << ev->signal << "\n";
-                mes_in.push(MESReq{ev->msgId, "payload-" + ev->signal});
+
+                int n = ++seq;
+                MsgId rid = std::format("REQ-{:04}", n);
+                auto p = std::make_unique<MESReqMsg>(rid, "reportSignal", ev->signal);
+                mesmgr_in.push(std::move(p));
             }
             else if (auto* rep = std::get_if<MESReply>(&m)) {
-                std::cout << "[HUB] MESReply " << rep->msgId << " ok=" << std::boolalpha << rep->success
+                std::cout << "[HUB] MESReply " << rep->msgId
+                          << " ok=" << std::boolalpha << rep->success
                           << " detail=" << rep->detail << "\n";
             }
         }
     });
 
-    std::this_thread::sleep_for(std::chrono::seconds(6));
+    using namespace std::chrono_literals;
+    std::this_thread::sleep_for(6s);
+
     hub.request_stop(); hub.join();
-    io.stop(); mes.stop();
+    io.stop(); mesmgr.stop();
     return 0;
 }

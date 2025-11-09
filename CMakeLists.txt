@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(mesClientExample LANGUAGES CXX)
+project(mes_client_example LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -11,10 +11,10 @@ add_executable(mes_client_example
     src/Messages.hpp
     src/MESClient.hpp
     src/workers/IOWorker.hpp
-    src/workers/MESWorker.hpp
+    src/MESManager.hpp
+    src/protocol/Protocol.hpp
 )
 
-# src를 포함 경로로 추가 (main.cpp에서 #include "workers/IOWorker.hpp" 등이 동작하도록)
 target_include_directories(mes_client_example PRIVATE src)
 
 if (MSVC)
